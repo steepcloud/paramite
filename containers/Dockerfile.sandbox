@@ -1,0 +1,106 @@
+FROM ubuntu:22.04
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Set timezone
+ENV TZ=UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Enable 32-bit architecture for Wine
+RUN dpkg --add-architecture i386
+
+# Install essential monitoring and analysis tools
+RUN apt-get update && apt-get install -y \
+    strace \
+    ltrace \
+    tcpdump \
+    netcat-openbsd \
+    wireshark-common \
+    tshark \
+    procps \
+    psmisc \
+    lsof \
+    inotify-tools \
+    auditd \
+    file \
+    binutils \
+    bsdextrautils \
+    xxd \
+    gdb \
+    valgrind \
+    wine \
+    wine32 \
+    wine64 \
+    xvfb \
+    curl \
+    wget \
+    vim \
+    nano \
+    jq \
+    python3 \
+    python3-pip \
+    unzip \
+    p7zip-full \
+    net-tools \
+    iputils-ping \
+    dnsutils \
+    cabextract \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install winetricks for better Windows app support
+RUN wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
+    -O /usr/local/bin/winetricks && \
+    chmod +x /usr/local/bin/winetricks
+
+# Install Python packages for analysis
+RUN pip3 install --no-cache-dir \
+    pefile \
+    yara-python \
+    capstone \
+    unicorn
+
+# Create analysis workspace
+WORKDIR /analysis
+
+# Create directories for monitoring output
+RUN mkdir -p \
+    /analysis/syscalls \
+    /analysis/network \
+    /analysis/files \
+    /analysis/processes \
+    /analysis/registry \
+    /analysis/samples \
+    /usr/local/bin/monitors
+
+# Copy monitoring scripts
+COPY containers/scripts/ /usr/local/bin/monitors/
+
+# Make scripts executable
+RUN chmod +x /usr/local/bin/monitors/*.sh
+
+# Set up Wine prefix for 32-bit Windows executables
+ENV WINEPREFIX=/root/.wine
+ENV WINEARCH=win32
+ENV WINEDLLOVERRIDES="mscoree,mshtml="
+
+# Initialize Wine
+RUN wine wineboot --init 2>/dev/null || true && \
+    wineserver -w
+
+# Copy VB6 runtime DLL to multiple Wine locations
+RUN mkdir -p /root/.wine/drive_c/windows/system32/ && \
+    mkdir -p /root/.wine/drive_c/windows/syswow64/
+COPY containers/dlls/MSVBVM60.DLL /root/.wine/drive_c/windows/system32/MSVBVM60.DLL
+COPY containers/dlls/MSVBVM60.DLL /root/.wine/drive_c/windows/syswow64/MSVBVM60.DLL
+
+# Verify DLL was copied
+RUN ls -lh /root/.wine/drive_c/windows/system32/MSVBVM60.DLL && \
+    file /root/.wine/drive_c/windows/system32/MSVBVM60.DLL
+
+# Security: Run as non-root user for malware execution
+RUN useradd -m -s /bin/bash malware && \
+    chown -R malware:malware /analysis
+
+# Default command
+CMD ["/bin/bash"]
