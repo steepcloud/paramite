@@ -6,7 +6,6 @@
  * static and dynamic malware analysis with support for Docker sandbox execution,
  * comprehensive reporting (HTML/JSON), and automated threat scoring.
  * 
- * @author Paramite Development Team
  * @date 2025
  */
 
