@@ -67,7 +67,7 @@ See WINDOWS_BUILD.md for detailed Windows setup instructions.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/paramite.git
+git clone https://github.com/steepcloud/paramite.git
 cd paramite
 
 # Run setup script (Linux)
